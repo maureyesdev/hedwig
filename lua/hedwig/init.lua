@@ -106,6 +106,47 @@ local function display_output(output)
   vim.api.nvim_buf_set_lines(bfrnr, 0, -1, false, output)
 end
 
+-- Support for multi requests in a single file
+-- It grabs a block between `###` and provides the correct lines to the request_factory
+local function get_request_block_lines()
+  local lines = vim.api.nvim_buf_get_lines(0, 0, -1, false)
+  -- ? Is this a right place to handle the error of empty buffer or no lines?
+  local cursor_current_position = vim.api.nvim_win_get_cursor(0)[1] -- current position on row { row,col }
+  local start_index
+  local end_index
+
+  -- Find the start of the current request section
+  for i = cursor_current_position, 1, -1 do
+    if lines[i]:match("###") or i == 1 then
+      start_index = i == 1 and 1 or i + 1
+      break
+    end
+  end
+
+  -- Find the end of the current request section
+  for i = cursor_current_position, #lines do
+    if lines[i]:match("^###") then
+      end_index = i - 1
+      break
+    end
+  end
+  if not end_index then
+    end_index = #lines
+  end
+
+  local request_lines = {}
+  for i = start_index, end_index do
+    table.insert(request_lines, lines[i])
+  end
+
+  -- If my request_lines[1] is empty, then I should remove it
+  if request_lines[1] == "" then
+    table.remove(request_lines, 1)
+  end
+
+  return request_lines
+end
+
 function M.setup()
   -- Support for .http and .rest files
   vim.api.nvim_create_autocmd({ "BufRead", "BufNewFile" }, {
@@ -117,11 +158,8 @@ function M.setup()
 end
 
 function M.run()
-  -- Read the current buffer
-  local lines = vim.api.nvim_buf_get_lines(0, 0, -1, false)
-  -- ? Is this a right place to handle the error of empty buffer or no lines?
-
-  local request = request_factory(lines)
+  local request_block_lines = get_request_block_lines()
+  local request = request_factory(request_block_lines)
   local output = request.execute()
 
   -- TODO: Probably need to handle more ways to display the output
