@@ -27,6 +27,11 @@ function M.run()
 
   local request = trim_string(lines[1])
 
+  -- Add the -s flag to the command
+  if not request:find("-s") then
+    request = request .. " -s"
+  end
+
   -- Execute the curl command
   local output = vim.fn.systemlist(request)
 
