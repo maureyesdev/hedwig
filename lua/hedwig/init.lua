@@ -25,10 +25,15 @@ function M.run()
   -- Read the current buffer
   local lines = vim.api.nvim_buf_get_lines(0, 0, -1, false)
 
-  local request = trim_string(lines[1])
+  -- Combine lines into a single command
+  local request = table.concat(lines, "\n")
 
-  -- Add the -s flag to the command
-  if not request:find("-s") then
+  -- Handle line continuations (`\`) and trim excess whitespace
+  request = request:gsub("\\%s*\n", " "):gsub("\n", " ")
+  request = trim_string(request)
+
+  -- Add the '-s' flag if not present
+  if not request:find("%-s") then
     request = request .. " -s"
   end
 
