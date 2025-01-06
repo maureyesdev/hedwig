@@ -20,6 +20,7 @@ local function execute_curl_request(lines)
   request = request:gsub("\\%s*\n", " "):gsub("\n", " ")
   request = trim_string(request)
 
+  -- TODO: This can be added into a options of the plugin, so curl can be as raw as possible or leave the option to the user to set this up
   -- Add the '-s' flag if not present
   if not request:find("%-s") then
     request = request .. " -s"
@@ -68,7 +69,7 @@ end
 local function execute_http_request(lines)
   local method, url, headers, body = parse_http_request(lines)
   local curl_command = {
-    "curl -sS",
+    "curl -sS -i",
     string.format("-X %s", method),
     table.concat(headers, " "),
     string.format("-d '%s'", body),
