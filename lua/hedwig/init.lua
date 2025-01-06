@@ -30,9 +30,53 @@ local function execute_curl_request(lines)
   return output
 end
 
+local function parse_http_request(lines)
+  -- Extract method and URL from the first line and trim leading and ending white space
+  local method, url = trim_string(lines[1]):match("^(%w+)%s+(.-)$")
+  -- ? Should I need a validation here?
+
+  -- Initialize headers and body containers
+  local headers = {}
+  local body = {}
+  local is_body = false
+
+  -- Loop through the lines to separate headers and body
+  for i = 2, #lines do
+    if lines[i] == "" then
+      -- Empty line indicates the start of the body
+      is_body = true
+    elseif is_body then
+      -- Collect the lines as body content
+      table.insert(body, lines[i])
+    else
+      -- Collect the lines as headers
+      local header_key, header_value = lines[i]:match("^(.-):%s*(.-)$")
+      if header_key and header_value then
+        table.insert(
+          headers,
+          string.format("-H '%s: %s'", header_key, header_value)
+        )
+        -- ? Should I need a validation here?
+      end
+    end
+  end
+
+  return method, url, headers, table.concat(body, "\n")
+end
+
 -- Execute a HTTP request
 local function execute_http_request(lines)
-  return { "HTTP syntax not yet supported" }
+  local method, url, headers, body = parse_http_request(lines)
+  local curl_command = {
+    "curl -sS",
+    string.format("-X %s", method),
+    table.concat(headers, " "),
+    string.format("-d '%s'", body),
+    string.format("'%s'", url),
+  }
+  local output = vim.fn.systemlist(table.concat(curl_command, " "))
+
+  return output
 end
 
 -- Request factory to handle curl request and HTTP syntax request
@@ -75,6 +119,7 @@ end
 function M.run()
   -- Read the current buffer
   local lines = vim.api.nvim_buf_get_lines(0, 0, -1, false)
+  -- ? Is this a right place to handle the error of empty buffer or no lines?
 
   local request = request_factory(lines)
   local output = request.execute()
