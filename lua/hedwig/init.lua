@@ -11,26 +11,45 @@ local function trim_string(s)
   return s:match("^%s*(.-)%s*$")
 end
 
+-- Execute a curl request
+local function execute_curl_request(lines)
+  -- Combine lines into a single command
+  local request = table.concat(lines, "\n")
+
+  -- Handle line continuations (`\`) and trim excess whitespace
+  request = request:gsub("\\%s*\n", " "):gsub("\n", " ")
+  request = trim_string(request)
+
+  -- Add the '-s' flag if not present
+  if not request:find("%-s") then
+    request = request .. " -s"
+  end
+
+  -- Execute the curl command
+  local output = vim.fn.systemlist(request)
+  return output
+end
+
+-- Execute a HTTP request
+local function execute_http_request(lines)
+  return { "HTTP syntax not yet supported" }
+end
+
 -- Request factory to handle curl request and HTTP syntax request
+-- TODO: Can I do JS object mapping return?
 local function request_factory(lines)
-  -- TODO: add validation if curl and if not then assume it's HTTP syntax
+  local is_curl = trim_string(lines[1]):lower():find("^curl") == 1
+  if is_curl then
+    return {
+      execute = function()
+        return execute_curl_request(lines)
+      end,
+    }
+  end
+
   return {
     execute = function()
-      -- Combine lines into a single command
-      local request = table.concat(lines, "\n")
-
-      -- Handle line continuations (`\`) and trim excess whitespace
-      request = request:gsub("\\%s*\n", " "):gsub("\n", " ")
-      request = trim_string(request)
-
-      -- Add the '-s' flag if not present
-      if not request:find("%-s") then
-        request = request .. " -s"
-      end
-
-      -- Execute the curl command
-      local output = vim.fn.systemlist(request)
-      return output
+      return execute_http_request(lines)
     end,
   }
 end
