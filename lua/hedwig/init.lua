@@ -1,5 +1,8 @@
 local M = {}
 
+-- variable to control the output buffer
+local output_buffer = nil
+
 -- Trim leading and ending white space from a string
 -- @param s string: The string to be trim
 -- @return string: The trimmed string
@@ -129,10 +132,26 @@ end
 
 -- Open a new vertical split and display the output
 local function display_output(output)
-  vim.api.nvim_command("vsplit")
-  local bfrnr = vim.api.nvim_create_buf(false, true)
-  vim.api.nvim_win_set_buf(0, bfrnr)
-  vim.api.nvim_buf_set_lines(bfrnr, 0, -1, false, output)
+  -- Check if any window is currently displaying the buffer
+  if output_buffer and vim.api.nvim_buf_is_valid(output_buffer) then
+    -- Check if any window is currently displaying the buffer
+    local win_ids = vim.fn.win_findbuf(output_buffer)
+    if #win_ids > 0 then
+      -- Focus the existing window displaying the buffer
+      vim.api.nvim_set_current_win(win_ids[1])
+    else
+      -- Open a new split if no window is displaying the buffer
+      vim.api.nvim_command("vsplit")
+      vim.api.nvim_win_set_buf(0, output_buffer)
+    end
+  else
+    -- Create a new split and buffer if none exists
+    vim.api.nvim_command("vsplit")
+    output_buffer = vim.api.nvim_create_buf(false, true)
+    vim.api.nvim_win_set_buf(0, output_buffer)
+  end
+
+  vim.api.nvim_buf_set_lines(output_buffer, 0, -1, false, output)
 end
 
 -- Support for multi requests in a single file
