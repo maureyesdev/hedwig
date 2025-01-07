@@ -14,6 +14,14 @@ local function trim_string(s)
   return s:match("^%s*(.-)%s*$")
 end
 
+-- Format a JSON string using jq
+-- ? This can be controlled by a user option and let the user decide if they want to format with JQ
+-- TODO: Need to validate if jq is available in the system
+local function format_json(json_str)
+  local command = "echo " .. vim.fn.shellescape(json_str) .. " | jq ."
+  return vim.fn.systemlist(command)
+end
+
 -- Parse the raw output of a curl request by taking the headers and body
 local function parse_response(raw_output)
   local output = {}
@@ -38,7 +46,13 @@ local function parse_response(raw_output)
     table.insert(output, line)
   end
   table.insert(output, "")
-  table.insert(output, table.concat(body, "\n"))
+  -- TODO: This format can be controlled by a user option.
+  -- if M.options.format_json then format otherwise just return the body
+  -- table.insert(output, table.concat(body, "\n"))
+  local json_body = format_json(table.concat(body, "\n"))
+  for _, line in ipairs(json_body) do
+    table.insert(output, line)
+  end
 
   return output
 end
@@ -152,6 +166,7 @@ local function display_output(output)
   end
 
   vim.api.nvim_buf_set_lines(output_buffer, 0, -1, false, output)
+  vim.api.nvim_set_option_value("filetype", "http", { buf = output_buffer })
 end
 
 -- Support for multi requests in a single file
