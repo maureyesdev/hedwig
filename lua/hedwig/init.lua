@@ -11,6 +11,35 @@ local function trim_string(s)
   return s:match("^%s*(.-)%s*$")
 end
 
+-- Parse the raw output of a curl request by taking the headers and body
+local function parse_response(raw_output)
+  local output = {}
+  local headers = {}
+  local body = {}
+  local is_body = false
+
+  for _, line in ipairs(raw_output) do
+    -- Remove \r and any other extraneous whitespace
+    line = line:gsub("\r", "")
+
+    if line == "" then
+      is_body = true
+    elseif is_body then
+      table.insert(body, line)
+    else
+      table.insert(headers, line)
+    end
+  end
+
+  for _, line in ipairs(headers) do
+    table.insert(output, line)
+  end
+  table.insert(output, "")
+  table.insert(output, table.concat(body, "\n"))
+
+  return output
+end
+
 -- Execute a curl request
 local function execute_curl_request(lines)
   -- Combine lines into a single command
@@ -27,8 +56,8 @@ local function execute_curl_request(lines)
   end
 
   -- Execute the curl command
-  local output = vim.fn.systemlist(request)
-  return output
+  local raw_output = vim.fn.systemlist(request)
+  return raw_output
 end
 
 local function parse_http_request(lines)
@@ -75,9 +104,8 @@ local function execute_http_request(lines)
     string.format("-d '%s'", body),
     string.format("'%s'", url),
   }
-  local output = vim.fn.systemlist(table.concat(curl_command, " "))
-
-  return output
+  local raw_output = vim.fn.systemlist(table.concat(curl_command, " "))
+  return raw_output
 end
 
 -- Request factory to handle curl request and HTTP syntax request
@@ -161,7 +189,8 @@ end
 function M.run()
   local request_block_lines = get_request_block_lines()
   local request = request_factory(request_block_lines)
-  local output = request.execute()
+  local raw_output = request.execute()
+  local output = parse_response(raw_output)
 
   -- TODO: Probably need to handle more ways to display the output
   display_output(output)
