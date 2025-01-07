@@ -85,19 +85,24 @@ local function parse_http_request(lines)
   -- Initialize headers and body containers
   local headers = {}
   local body = {}
+  local query_params = {}
   local is_body = false
 
-  -- Loop through the lines to separate headers and body
+  -- Loop through the lines to separate headers, body and params
   for i = 2, #lines do
-    if lines[i] == "" then
+    local line = trim_string(lines[i])
+
+    if line == "" then
       -- Empty line indicates the start of the body
       is_body = true
     elseif is_body then
       -- Collect the lines as body content
-      table.insert(body, lines[i])
+      table.insert(body, line)
+    elseif line:match("^%?") or line:match("^&") then
+      table.insert(query_params, line:sub(2)) -- Remove '?' or '&'
     else
       -- Collect the lines as headers
-      local header_key, header_value = lines[i]:match("^(.-):%s*(.-)$")
+      local header_key, header_value = line:match("^(.-):%s*(.-)$")
       if header_key and header_value then
         table.insert(
           headers,
@@ -106,6 +111,11 @@ local function parse_http_request(lines)
         -- ? Should I need a validation here?
       end
     end
+  end
+
+  -- Append query parameters to URL
+  if #query_params > 0 then
+    url = url .. "?" .. table.concat(query_params, "&")
   end
 
   return method, url, headers, table.concat(body, "\n")
